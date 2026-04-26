@@ -163,6 +163,10 @@ code{font-family:"SF Mono",Consolas,"Liberation Mono",Menlo,monospace;font-size:
 .btn:hover{background:var(--surface2);border-color:var(--accent);color:var(--accent)}
 .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
 .btn.primary:hover{background:#4338ca;border-color:#4338ca;color:#fff}
+html.dark .btn.primary{color:#12104a}
+html.dark .btn.primary:hover{background:#6366f1;border-color:#6366f1;color:#12104a}
+html.dark .fmt-tab.active{color:#12104a}
+html.dark .lb-tab.active{color:#12104a}
 .btn-row{display:flex;gap:.6rem;flex-wrap:wrap;margin:.75rem 0}
 
 /* Tags / badges */
@@ -174,7 +178,7 @@ code{font-family:"SF Mono",Consolas,"Liberation Mono",Menlo,monospace;font-size:
 
 /* ─── Encoding comparison ─── */
 .fmt-tabs{display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap}
-.fmt-tab{padding:.4rem .9rem;border-radius:6px;border:1px solid var(--border);background:var(--surface);font-size:.82rem;cursor:pointer;transition:all .15s;font-weight:500}
+.fmt-tab{padding:.4rem .9rem;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:.82rem;cursor:pointer;transition:all .15s;font-weight:500}
 .fmt-tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
 .fmt-bars{display:flex;flex-direction:column;gap:.5rem;margin:.75rem 0}
 .fmt-bar-row{display:flex;align-items:center;gap:.75rem;font-size:.83rem}
