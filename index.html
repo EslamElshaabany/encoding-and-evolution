@@ -28,6 +28,36 @@
   --sh: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.05);
   --sh-md: 0 4px 12px rgba(0,0,0,.08);
 }
+html.dark {
+  --bg: #0f1117;
+  --surface: #1a1d2e;
+  --surface2: #23263a;
+  --border: #2e3148;
+  --text: #e2e8f0;
+  --muted: #8892a4;
+  --accent: #818cf8;
+  --accent-light: #1e1b4b;
+  --cyan: #22d3ee;
+  --cyan-light: #0c2235;
+  --green: #34d399;
+  --green-light: #022c22;
+  --amber: #fbbf24;
+  --amber-light: #2d1d03;
+  --red: #f87171;
+  --red-light: #2d0a0a;
+  --purple: #a78bfa;
+  --purple-light: #1e1535;
+  --sh: 0 1px 3px rgba(0,0,0,.4), 0 1px 2px rgba(0,0,0,.3);
+  --sh-md: 0 4px 12px rgba(0,0,0,.4);
+}
+/* Dark mode SVG text and fills */
+html.dark .node-sub { fill: #8892a4; }
+html.dark .comp-table th { background: var(--surface2); }
+html.dark .ru-client { background: #1e3a5f; color: #93c5fd; border-color: #3b82f6; }
+html.dark .ru-lb { background: #2d1b69; color: #c4b5fd; border-color: #7c3aed; }
+html.dark .ru-node.v1 { background: #3d2c00; color: #fbbf24; border-color: #d97706; }
+html.dark .ru-node.v2 { background: #022c22; color: #34d399; border-color: #059669; }
+html.dark .ru-node.upgrading { background: #1e1b4b; color: #a5b4fc; border-color: #6366f1; }
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.75;font-size:17px}
@@ -226,6 +256,9 @@ code{font-family:"SF Mono",Consolas,"Liberation Mono",Menlo,monospace;font-size:
   <div class="book-note">
     Based on <em>Designing Data-Intensive Applications, 2nd Ed.</em> — Chapter 5: Encoding and Evolution
   </div>
+  <button id="theme-toggle" onclick="toggleDark()" style="margin-top:1.5rem;width:100%;padding:.45rem .75rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-size:.82rem;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:.5rem">
+    <span id="theme-icon">🌙</span><span id="theme-label">Dark mode</span>
+  </button>
 </aside>
 
 <!-- ════════ MAIN ════════ -->
@@ -1456,6 +1489,26 @@ function resetDecider() {
 }
 
 renderDecider();
+
+// ─── Dark mode ───
+function toggleDark() {
+  const dark = document.documentElement.classList.toggle('dark');
+  localStorage.setItem('theme', dark ? 'dark' : 'light');
+  updateThemeBtn(dark);
+}
+function updateThemeBtn(dark) {
+  document.getElementById('theme-icon').textContent = dark ? '☀️' : '🌙';
+  document.getElementById('theme-label').textContent = dark ? 'Light mode' : 'Dark mode';
+}
+// Apply saved preference immediately
+(function() {
+  const saved = localStorage.getItem('theme');
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  if (saved === 'dark' || (!saved && prefersDark)) {
+    document.documentElement.classList.add('dark');
+    updateThemeBtn(true);
+  }
+})();
 </script>
 </body>
 </html>
