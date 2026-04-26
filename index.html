@@ -50,14 +50,59 @@ html.dark {
   --sh: 0 1px 3px rgba(0,0,0,.4), 0 1px 2px rgba(0,0,0,.3);
   --sh-md: 0 4px 12px rgba(0,0,0,.4);
 }
-/* Dark mode SVG text and fills */
-html.dark .node-sub { fill: #8892a4; }
-html.dark .comp-table th { background: var(--surface2); }
+/* ── Dark mode: rolling upgrade nodes ── */
 html.dark .ru-client { background: #1e3a5f; color: #93c5fd; border-color: #3b82f6; }
 html.dark .ru-lb { background: #2d1b69; color: #c4b5fd; border-color: #7c3aed; }
 html.dark .ru-node.v1 { background: #3d2c00; color: #fbbf24; border-color: #d97706; }
 html.dark .ru-node.v2 { background: #022c22; color: #34d399; border-color: #059669; }
 html.dark .ru-node.upgrading { background: #1e1b4b; color: #a5b4fc; border-color: #6366f1; }
+
+/* ── Dark mode: badges ── */
+html.dark .badge.v1  { background: #3d2c00; color: #fbbf24; }
+html.dark .badge.v2  { background: #022c22; color: #34d399; }
+html.dark .badge.pro { background: #022c22; color: #34d399; }
+html.dark .badge.con { background: #2d0a0a; color: #f87171; }
+
+/* ── Dark mode: tradeoff boxes (text is hardcoded in base CSS) ── */
+html.dark .tradeoff-box.pros { color: #34d399; }
+html.dark .tradeoff-box.cons { color: #f87171; }
+
+/* ── Dark mode: SVG node fill overrides ──
+   CSS fill property overrides SVG presentation attributes.
+
+   Client boxes (light blue → dark blue) */
+html.dark svg rect[fill="#dbeafe"] { fill: #1e3a5f; }
+html.dark svg text[fill="#1e40af"] { fill: #93c5fd; }
+
+/* Server boxes (light green → dark green) */
+html.dark svg rect[fill="#d1fae5"] { fill: #022c22; }
+html.dark svg text[fill="#065f46"] { fill: #34d399; }
+
+/* Amber boxes: v1 server, DNS cache note, control plane (light amber → dark amber) */
+html.dark svg rect[fill="#fef3c7"] { fill: #3d2c00; }
+html.dark svg text[fill="#92400e"] { fill: #fbbf24; }
+
+/* Offline server (light red → dark red) */
+html.dark svg rect[fill="#fee2e2"] { fill: #2d0a0a; }
+html.dark svg text[fill="#991b1b"] { fill: #f87171; }
+
+/* NGINX config box (light green → dark green) */
+html.dark svg rect[fill="#f0fdf4"] { fill: #052e16; }
+html.dark svg text[fill="#166534"] { fill: #4ade80; }
+html.dark svg text[fill="#4ade80"] { fill: #10b981; }
+
+/* mTLS tunnel label (light cyan → dark cyan) */
+html.dark svg rect[fill="#ecfeff"] { fill: #0c2235; }
+html.dark svg text[fill="#0e7490"] { fill: #22d3ee; }
+
+/* Service mesh pod outlines */
+html.dark svg rect[fill="none"][stroke="#e5e7eb"] { stroke: #374151; }
+
+/* Annotation text: boost green arrows (dark green → lighter green) */
+html.dark svg text[fill="#059669"] { fill: #34d399; }
+
+/* SVG node-sub text (already handled but explicit) */
+html.dark .node-sub { fill: #8892a4; }
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.75;font-size:17px}
