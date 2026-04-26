@@ -1,0 +1,1461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Load Balancers, Service Discovery & Service Meshes — DDIA Ch. 5</title>
+<style>
+:root {
+  --bg: #f9fafb;
+  --surface: #ffffff;
+  --surface2: #f3f4f6;
+  --border: #e5e7eb;
+  --text: #111827;
+  --muted: #6b7280;
+  --accent: #4f46e5;
+  --accent-light: #eef2ff;
+  --cyan: #0891b2;
+  --cyan-light: #ecfeff;
+  --green: #059669;
+  --green-light: #ecfdf5;
+  --amber: #d97706;
+  --amber-light: #fffbeb;
+  --red: #dc2626;
+  --red-light: #fef2f2;
+  --purple: #7c3aed;
+  --purple-light: #f5f3ff;
+  --r: 10px;
+  --sh: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.05);
+  --sh-md: 0 4px 12px rgba(0,0,0,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.75;font-size:17px}
+
+/* Progress bar */
+#progress-bar{position:fixed;top:0;left:0;height:3px;background:var(--accent);z-index:100;transition:width .1s linear;width:0}
+
+/* Layout */
+.layout{display:grid;grid-template-columns:220px 1fr;max-width:1140px;margin:0 auto;gap:0}
+
+/* Sidebar */
+aside{position:sticky;top:0;height:100vh;overflow-y:auto;padding:2rem 1.25rem;border-right:1px solid var(--border);background:var(--surface)}
+aside h2{font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:.75rem}
+aside nav a{display:block;font-size:.82rem;color:var(--muted);text-decoration:none;padding:.3rem .5rem;border-radius:5px;transition:all .15s}
+aside nav a:hover,aside nav a.active{color:var(--accent);background:var(--accent-light)}
+aside nav .sub{padding-left:1rem}
+aside .book-note{margin-top:2rem;padding:.75rem;background:var(--surface2);border-radius:var(--r);font-size:.78rem;color:var(--muted);line-height:1.5}
+
+/* Main */
+main{padding:3.5rem 4rem;max-width:820px}
+
+/* Typography */
+h1{font-size:2.4rem;line-height:1.2;letter-spacing:-.02em;margin-bottom:.5rem}
+.subtitle{font-size:1.05rem;color:var(--muted);margin-bottom:2rem}
+.meta{display:flex;gap:1.5rem;font-size:.82rem;color:var(--muted);margin-bottom:3rem;padding-bottom:1.5rem;border-bottom:1px solid var(--border)}
+h2{font-size:1.6rem;letter-spacing:-.01em;margin:3rem 0 .75rem;padding-top:1rem}
+h3{font-size:1.15rem;margin:2rem 0 .6rem;color:var(--text)}
+p{margin-bottom:1rem}
+ul,ol{margin:.5rem 0 1rem 1.5rem}
+li{margin-bottom:.35rem}
+strong{font-weight:600}
+code{font-family:"SF Mono",Consolas,"Liberation Mono",Menlo,monospace;font-size:.85em;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:.1em .35em}
+
+/* Section numbers */
+.section-num{font-size:.75rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:.25rem}
+
+/* Callouts */
+.callout{padding:1rem 1.25rem;border-radius:var(--r);margin:1.5rem 0;border-left:4px solid}
+.callout.info{background:var(--accent-light);border-color:var(--accent)}
+.callout.tip{background:var(--green-light);border-color:var(--green)}
+.callout.warn{background:var(--amber-light);border-color:var(--amber)}
+.callout p{margin:0;font-size:.9rem}
+.callout strong{display:block;margin-bottom:.25rem;font-size:.8rem;text-transform:uppercase;letter-spacing:.05em}
+
+/* Pull quote */
+.pullquote{border-left:3px solid var(--accent);padding:.75rem 1.25rem;margin:1.5rem 0;font-size:1.05rem;color:var(--accent);font-style:italic;background:var(--accent-light);border-radius:0 var(--r) var(--r) 0}
+
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1.25rem;box-shadow:var(--sh);margin:1rem 0}
+.card-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1rem 0}
+
+/* Diagram containers */
+.diagram{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1.5rem;margin:1.5rem 0;box-shadow:var(--sh-md);overflow-x:auto}
+.diagram-title{font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:1rem}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:.85rem;font-weight:500;cursor:pointer;transition:all .15s}
+.btn:hover{background:var(--surface2);border-color:var(--accent);color:var(--accent)}
+.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn.primary:hover{background:#4338ca;border-color:#4338ca;color:#fff}
+.btn-row{display:flex;gap:.6rem;flex-wrap:wrap;margin:.75rem 0}
+
+/* Tags / badges */
+.badge{display:inline-block;font-size:.72rem;font-weight:600;padding:.15rem .55rem;border-radius:999px;letter-spacing:.03em}
+.badge.v1{background:#fef3c7;color:#92400e}
+.badge.v2{background:#d1fae5;color:#065f46}
+.badge.pro{background:#d1fae5;color:#065f46}
+.badge.con{background:#fee2e2;color:#991b1b}
+
+/* ─── Encoding comparison ─── */
+.fmt-tabs{display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap}
+.fmt-tab{padding:.4rem .9rem;border-radius:6px;border:1px solid var(--border);background:var(--surface);font-size:.82rem;cursor:pointer;transition:all .15s;font-weight:500}
+.fmt-tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.fmt-bars{display:flex;flex-direction:column;gap:.5rem;margin:.75rem 0}
+.fmt-bar-row{display:flex;align-items:center;gap:.75rem;font-size:.83rem}
+.fmt-bar-label{width:110px;text-align:right;color:var(--muted);font-size:.8rem}
+.fmt-bar-track{flex:1;height:20px;background:var(--surface2);border-radius:4px;overflow:hidden}
+.fmt-bar-fill{height:100%;border-radius:4px;transition:width .4s ease;display:flex;align-items:center;padding-left:.4rem;font-size:.72rem;font-weight:600;color:#fff}
+.fmt-bar-bytes{min-width:55px;font-size:.78rem;color:var(--muted)}
+.fmt-detail{padding:1rem;background:var(--surface2);border-radius:var(--r);font-size:.88rem;line-height:1.6;margin-top:.5rem;min-height:72px}
+
+/* ─── Compat grid ─── */
+.compat-grid{display:grid;grid-template-columns:auto 1fr 1fr;gap:2px;margin:1rem 0;font-size:.82rem}
+.cg-header{background:var(--surface2);padding:.5rem .75rem;font-weight:600;text-align:center;border-radius:4px}
+.cg-label{background:var(--surface2);padding:.5rem .75rem;font-weight:600;display:flex;align-items:center;border-radius:4px;writing-mode:vertical-rl;transform:rotate(180deg);justify-content:center}
+.cg-cell{padding:.75rem;border-radius:4px;text-align:center;border:1px solid var(--border);cursor:pointer;transition:all .15s;background:var(--surface)}
+.cg-cell:hover{transform:scale(1.02)}
+.cg-cell.ok{background:var(--green-light);border-color:var(--green)}
+.cg-cell.hard{background:var(--amber-light);border-color:var(--amber)}
+.cg-icon{font-size:1.3rem;display:block;margin-bottom:.25rem}
+
+/* ─── Dataflow modes ─── */
+.df-modes{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem;margin:1rem 0}
+.df-mode{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1rem;text-align:center}
+.df-mode .icon{font-size:1.6rem;margin-bottom:.4rem}
+.df-mode h4{font-size:.85rem;font-weight:600;margin-bottom:.3rem}
+.df-mode p{font-size:.78rem;color:var(--muted);margin:0}
+
+/* ─── Rolling upgrade ─── */
+.ru-scene{display:flex;flex-direction:column;align-items:center;gap:1rem;padding:1rem 0}
+.ru-row{display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap}
+.ru-client,.ru-lb{padding:.6rem 1.4rem;border-radius:8px;font-size:.85rem;font-weight:600;text-align:center}
+.ru-client{background:#dbeafe;color:#1e40af;border:2px solid #93c5fd}
+.ru-lb{background:#ede9fe;color:#4c1d95;border:2px solid #c4b5fd;width:220px}
+.ru-arrow{color:var(--muted);font-size:.9rem;margin:.15rem 0}
+.ru-nodes{display:flex;gap:.6rem;flex-wrap:wrap;justify-content:center}
+.ru-node{width:82px;height:60px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:.78rem;font-weight:600;transition:all .4s;border:2px solid}
+.ru-node.v1{background:#fef3c7;color:#92400e;border-color:#fbbf24}
+.ru-node.upgrading{background:#e0e7ff;color:#3730a3;border-color:#818cf8;animation:pulse 1s infinite}
+.ru-node.v2{background:#d1fae5;color:#065f46;border-color:#34d399}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+.ru-node .node-label{font-size:.65rem;margin-top:.15rem;opacity:.8}
+.ru-stats{display:flex;gap:1.5rem;font-size:.82rem;color:var(--muted);margin-top:.25rem}
+.ru-stat span{font-weight:700}
+.ru-desc{font-size:.85rem;color:var(--muted);text-align:center;min-height:1.5rem;font-style:italic}
+
+/* ─── LB Technique tabs ─── */
+.lb-tabs{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:1.5rem;border-bottom:2px solid var(--border);padding-bottom:.75rem}
+.lb-tab{padding:.45rem 1rem;border-radius:6px;border:1px solid transparent;font-size:.83rem;font-weight:500;cursor:pointer;transition:all .15s;color:var(--muted)}
+.lb-tab:hover{background:var(--surface2)}
+.lb-tab.active{background:var(--accent-light);color:var(--accent);border-color:var(--accent)}
+.lb-panel{display:none}
+.lb-panel.active{display:block}
+
+/* ─── Topology diagrams (SVG-based) ─── */
+.topo-svg{width:100%;max-width:620px;display:block;margin:0 auto}
+.node-box{rx:8;ry:8}
+.node-label{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-weight:600;font-size:13px}
+.node-sub{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:10px;fill:#6b7280}
+.conn-line{stroke:#d1d5db;stroke-width:2;fill:none}
+.req-dot{fill:#f59e0b;transition:all .35s}
+.step-desc{font-size:.85rem;color:var(--muted);text-align:center;min-height:2.5rem;margin-top:.75rem;padding:.5rem;background:var(--surface2);border-radius:6px;font-style:italic}
+
+/* Pros / cons */
+.tradeoffs{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin:1rem 0}
+.tradeoff-box{padding:.875rem;border-radius:var(--r);font-size:.83rem}
+.tradeoff-box h4{font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:.5rem}
+.tradeoff-box.pros{background:var(--green-light);color:#065f46}
+.tradeoff-box.cons{background:var(--red-light);color:#991b1b}
+.tradeoff-box ul{margin:0;padding-left:1.1rem}
+.tradeoff-box li{margin-bottom:.2rem}
+
+/* ─── Decision helper ─── */
+.decision-box{background:var(--surface);border:2px solid var(--border);border-radius:var(--r);padding:1.5rem;margin:1.5rem 0}
+.dq{font-size:1rem;font-weight:600;margin-bottom:1rem}
+.d-options{display:flex;flex-direction:column;gap:.5rem}
+.d-opt{padding:.65rem 1rem;border-radius:7px;border:1px solid var(--border);background:var(--surface);font-size:.88rem;cursor:pointer;transition:all .15s;text-align:left}
+.d-opt:hover{background:var(--accent-light);border-color:var(--accent);color:var(--accent)}
+.d-result{background:var(--accent-light);border:2px solid var(--accent);border-radius:var(--r);padding:1.25rem;margin-top:1rem;display:none}
+.d-result h4{color:var(--accent);font-size:1rem;margin-bottom:.4rem}
+.d-result p{margin:0;font-size:.88rem;color:var(--text)}
+.d-progress{font-size:.78rem;color:var(--muted);margin-bottom:1rem}
+
+/* ─── Comparison table ─── */
+.comp-table{width:100%;border-collapse:collapse;font-size:.82rem;margin:1rem 0}
+.comp-table th{background:var(--surface2);padding:.6rem .75rem;text-align:left;font-weight:600;border-bottom:2px solid var(--border)}
+.comp-table td{padding:.55rem .75rem;border-bottom:1px solid var(--border);vertical-align:top}
+.comp-table tr:hover td{background:var(--surface2)}
+.dot-green::before{content:"●";color:var(--green);margin-right:.3rem}
+.dot-amber::before{content:"●";color:var(--amber);margin-right:.3rem}
+.dot-red::before{content:"●";color:var(--red);margin-right:.3rem}
+
+/* Responsive */
+@media(max-width:900px){
+  .layout{grid-template-columns:1fr}
+  aside{display:none}
+  main{padding:2rem 1.5rem;max-width:100%}
+  .card-grid,.df-modes,.tradeoffs{grid-template-columns:1fr}
+  h1{font-size:1.8rem}
+}
+</style>
+</head>
+<body>
+
+<div id="progress-bar"></div>
+
+<div class="layout">
+
+<!-- ════════ SIDEBAR ════════ -->
+<aside>
+  <h2>Contents</h2>
+  <nav id="toc">
+    <a href="#intro">Introduction</a>
+    <a href="#encoding" class="sub">Encoding Formats</a>
+    <a href="#compat" class="sub">Compatibility</a>
+    <a href="#dataflow" class="sub">Modes of Dataflow</a>
+    <a href="#rolling">Rolling Upgrades</a>
+    <a href="#lb-section">Load Balancing</a>
+    <a href="#hardware" class="sub">Hardware LB</a>
+    <a href="#software" class="sub">Software LB</a>
+    <a href="#dns" class="sub">DNS LB</a>
+    <a href="#discovery" class="sub">Service Discovery</a>
+    <a href="#mesh" class="sub">Service Meshes</a>
+    <a href="#decision">Choosing an Approach</a>
+  </nav>
+  <div class="book-note">
+    Based on <em>Designing Data-Intensive Applications, 2nd Ed.</em> — Chapter 5: Encoding and Evolution
+  </div>
+</aside>
+
+<!-- ════════ MAIN ════════ -->
+<main>
+
+<!-- ── HEADER ── -->
+<section id="intro">
+  <span class="section-num">DDIA · Chapter 5</span>
+  <h1>Load Balancers, Service Discovery &amp; Service Meshes</h1>
+  <p class="subtitle">How infrastructure keeps services connected while they evolve</p>
+  <div class="meta">
+    <span>⏱ ~15 min read</span>
+    <span>🔗 Encoding &amp; Evolution</span>
+    <span>🏗 Infrastructure</span>
+  </div>
+
+  <p>
+    Applications change. New features ship, schemas evolve, APIs gain new fields. But in a live
+    system, you can't swap every server simultaneously — you need to deploy gradually while the
+    system keeps serving traffic. This creates a fundamental tension: at any given moment, your
+    infrastructure might be running <strong>two versions of the same service at once</strong>.
+  </p>
+  <p>
+    This article builds from the ground up. We'll quickly cover <em>why</em> encoding formats matter,
+    <em>what</em> backward and forward compatibility mean, and <em>how</em> data flows between services.
+    Then we'll arrive at the real question this chapter builds toward: once you have rolling upgrades
+    and mixed-version deployments, <strong>how does the network infrastructure route requests to the
+    right version?</strong>
+  </p>
+</section>
+
+<!-- ════════════════════════════════════
+     SECTION 1 — ENCODING FORMATS (brief)
+════════════════════════════════════ -->
+<section id="encoding">
+  <span class="section-num">Background · 1 of 3</span>
+  <h2>Encoding Formats</h2>
+
+  <p>
+    In memory, data lives as objects, structs, and lists. When you send data over the network or
+    write it to disk, it must become a flat sequence of bytes. The translation is called
+    <strong>encoding</strong> (or serialization). Choosing an encoding format is a decision that
+    reverberates through your system's evolvability.
+  </p>
+
+  <div class="card-grid">
+    <div class="card">
+      <strong>Text formats</strong> — JSON, XML, CSV
+      <p style="font-size:.85rem;color:var(--muted);margin-top:.4rem">Human-readable, widely supported. Schema is optional, which is flexible but means field names are repeated in every message. Numbers can be ambiguous (no integer vs float distinction in JSON).</p>
+    </div>
+    <div class="card">
+      <strong>Binary schema-driven</strong> — Protobuf, Avro
+      <p style="font-size:.85rem;color:var(--muted);margin-top:.4rem">Compact: field names are replaced by numeric tags (Protobuf) or removed entirely (Avro). Require a schema, which doubles as documentation and enables tooling for compatibility checks.</p>
+    </div>
+  </div>
+
+  <!-- Interactive encoding size comparison -->
+  <div class="diagram">
+    <div class="diagram-title">Encoding Size Comparison — same record, four formats</div>
+    <div class="fmt-tabs">
+      <button class="fmt-tab active" onclick="showFormat('json')">JSON</button>
+      <button class="fmt-tab" onclick="showFormat('msgpack')">MessagePack</button>
+      <button class="fmt-tab" onclick="showFormat('proto')">Protocol Buffers</button>
+      <button class="fmt-tab" onclick="showFormat('avro')">Avro</button>
+    </div>
+
+    <div class="fmt-bars">
+      <div class="fmt-bar-row">
+        <div class="fmt-bar-label">JSON</div>
+        <div class="fmt-bar-track"><div class="fmt-bar-fill" id="bar-json" style="width:100%;background:#6b7280">81 B</div></div>
+        <div class="fmt-bar-bytes">81 bytes</div>
+      </div>
+      <div class="fmt-bar-row">
+        <div class="fmt-bar-label">MessagePack</div>
+        <div class="fmt-bar-track"><div class="fmt-bar-fill" id="bar-msgpack" style="width:81.5%;background:#6b7280">66 B</div></div>
+        <div class="fmt-bar-bytes">66 bytes</div>
+      </div>
+      <div class="fmt-bar-row">
+        <div class="fmt-bar-label">Protobuf</div>
+        <div class="fmt-bar-track"><div class="fmt-bar-fill" id="bar-proto" style="width:40.7%;background:#6b7280">33 B</div></div>
+        <div class="fmt-bar-bytes">33 bytes</div>
+      </div>
+      <div class="fmt-bar-row">
+        <div class="fmt-bar-label">Avro</div>
+        <div class="fmt-bar-track"><div class="fmt-bar-fill" id="bar-avro" style="width:39.5%;background:#6b7280">32 B</div></div>
+        <div class="fmt-bar-bytes">32 bytes</div>
+      </div>
+    </div>
+    <div class="fmt-detail" id="fmt-detail">
+      <strong>JSON:</strong> Encodes field names as strings in every message. <code>{"userName":"Martin","favoriteNumber":1337,"interests":["daydreaming","hacking"]}</code> — 81 bytes. Human-readable but verbose. Schema is optional, so you trade compactness for flexibility.
+    </div>
+    <p style="font-size:.78rem;color:var(--muted);margin-top:.5rem">Record: <code>{userName: "Martin", favoriteNumber: 1337, interests: ["daydreaming", "hacking"]}</code></p>
+  </div>
+
+  <p>
+    The binary formats' compactness matters at scale — but what really matters for <em>evolution</em>
+    is how each format handles schema changes over time.
+  </p>
+</section>
+
+<!-- ════════════════════════════════════
+     SECTION 2 — COMPATIBILITY (brief)
+════════════════════════════════════ -->
+<section id="compat">
+  <span class="section-num">Background · 2 of 3</span>
+  <h2>Backward &amp; Forward Compatibility</h2>
+
+  <p>
+    When a schema changes, two things must hold for the system to keep working during a transition:
+  </p>
+
+  <div class="compat-grid">
+    <div></div>
+    <div class="cg-header">Old Data<br>(written by old code)</div>
+    <div class="cg-header">New Data<br>(written by new code)</div>
+    <div class="cg-label" style="writing-mode:horizontal-tb;transform:none;font-size:.78rem;padding:.5rem">New Code reads</div>
+    <div class="cg-cell ok" title="Always possible — new code knows about old fields">
+      <span class="cg-icon">✅</span>
+      <strong>Backward compat</strong><br>
+      <span style="font-size:.75rem">New code reads old data. Usually easy — new code knows what old fields look like.</span>
+    </div>
+    <div class="cg-cell ok">
+      <span class="cg-icon">✅</span>
+      <strong>Same version</strong><br>
+      <span style="font-size:.75rem">No compatibility needed.</span>
+    </div>
+    <div class="cg-label" style="writing-mode:horizontal-tb;transform:none;font-size:.78rem;padding:.5rem">Old Code reads</div>
+    <div class="cg-cell ok">
+      <span class="cg-icon">✅</span>
+      <strong>Same version</strong><br>
+      <span style="font-size:.75rem">No compatibility needed.</span>
+    </div>
+    <div class="cg-cell hard">
+      <span class="cg-icon">⚠️</span>
+      <strong>Forward compat</strong><br>
+      <span style="font-size:.75rem">Old code reads data written by new code. Harder — old code must gracefully ignore unknown fields.</span>
+    </div>
+  </div>
+
+  <p>
+    Protocol Buffers achieves forward compatibility with <strong>field tags</strong>: unknown tag numbers
+    are skipped, not rejected. Avro resolves by matching fields by name between writer's and reader's
+    schema — extra fields are ignored, missing fields use defaults.
+  </p>
+
+  <div class="callout info">
+    <p><strong>Key insight</strong> In a rolling upgrade, you need both. Old nodes read new messages (forward compat) and new nodes read old messages (backward compat). Pick a format that handles both explicitly.</p>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════
+     SECTION 3 — MODES OF DATAFLOW (brief)
+════════════════════════════════════ -->
+<section id="dataflow">
+  <span class="section-num">Background · 3 of 3</span>
+  <h2>Modes of Dataflow</h2>
+
+  <p>
+    Encoded bytes travel between processes in three main ways. Each mode has different compatibility pressures:
+  </p>
+
+  <div class="df-modes">
+    <div class="df-mode">
+      <div class="icon">🗄️</div>
+      <h4>Through Databases</h4>
+      <p>Writer encodes, reader decodes — possibly months later. Data outlives code, so both backward and forward compat are required.</p>
+    </div>
+    <div class="df-mode">
+      <div class="icon">🌐</div>
+      <h4>REST &amp; RPC</h4>
+      <p>Client encodes request, server decodes it. Usually safe to assume servers are updated first, so forward compat on requests matters most.</p>
+    </div>
+    <div class="df-mode">
+      <div class="icon">📨</div>
+      <h4>Message Brokers</h4>
+      <p>Producer encodes, consumer decodes asynchronously. Messages can be re-read later — schema compatibility needs careful management.</p>
+    </div>
+  </div>
+
+  <p>
+    We're focusing on REST &amp; RPC. This is where <strong>service discovery</strong> and
+    <strong>load balancing</strong> live — which brings us to the core of this article.
+  </p>
+</section>
+
+<!-- ════════════════════════════════════
+     SECTION 4 — ROLLING UPGRADES (the bridge)
+════════════════════════════════════ -->
+<section id="rolling">
+  <span class="section-num">The Bridge</span>
+  <h2>The Rolling Upgrade Challenge</h2>
+
+  <p>
+    When you deploy a new version of a service in production, you don't swap every instance at once.
+    Instead, you do a <strong>rolling upgrade</strong>: replace one node at a time, verify it runs
+    smoothly, and proceed. This approach avoids downtime and limits blast radius if something goes wrong.
+  </p>
+
+  <div class="pullquote">
+    During a rolling upgrade, old and new versions of your service run simultaneously — and they must
+    both be able to handle requests.
+  </div>
+
+  <p>
+    This is where encoding meets infrastructure. Format-level compatibility (Protobuf, Avro) ensures
+    that old and new code can parse each other's messages. But there's a second, infrastructure-level
+    question: <em>how does a request get routed to the right instance?</em> If a v2 client sends a
+    request with a new field, you want it to reach a v2 server. If a v1 client can only speak the
+    old protocol, you might want to route it to a v1 server until both sides upgrade.
+  </p>
+  <p>
+    <strong>Load balancers and service discovery systems are the infrastructure layer that makes
+    this routing possible.</strong> That's why this topic appears here, in a chapter about encoding
+    and evolution.
+  </p>
+
+  <!-- Interactive rolling upgrade -->
+  <div class="diagram">
+    <div class="diagram-title">Rolling Upgrade Simulator</div>
+    <div class="ru-scene">
+      <div class="ru-client">Client</div>
+      <div class="ru-arrow">↓ request ↓</div>
+      <div class="ru-lb" id="ru-lb">Load Balancer<br><small style="font-weight:400;opacity:.8">routes to any running node</small></div>
+      <div class="ru-arrow">↓ distributes ↓</div>
+      <div class="ru-nodes" id="ru-nodes"></div>
+      <div class="ru-stats">
+        <span><span class="badge v1">v1</span> nodes: <span id="ru-v1-count">6</span></span>
+        <span><span class="badge v2">v2</span> nodes: <span id="ru-v2-count">0</span></span>
+      </div>
+      <div class="ru-desc" id="ru-desc">Click "Start Upgrade" to watch a rolling deployment in action.</div>
+    </div>
+    <div class="btn-row" style="justify-content:center">
+      <button class="btn primary" id="ru-start-btn" onclick="startRollingUpgrade()">▶ Start Upgrade</button>
+      <button class="btn" onclick="resetRollingUpgrade()">↺ Reset</button>
+    </div>
+  </div>
+
+  <p>
+    Notice how, mid-upgrade, some nodes run v1 and some run v2. Any request landing on a v1 node must
+    use the old format; any request landing on v2 must use the new format — or the format must be
+    backward/forward compatible. The load balancer has to seamlessly route requests across both.
+  </p>
+</section>
+
+<!-- ════════════════════════════════════
+     SECTION 5 — LOAD BALANCING DEEP DIVE
+════════════════════════════════════ -->
+<section id="lb-section">
+  <span class="section-num">Main Topic</span>
+  <h2>Load Balancing Approaches</h2>
+
+  <p>
+    When multiple instances of a service run simultaneously, incoming requests must be distributed
+    across them. This is <strong>load balancing</strong>. But to balance load, clients first need to
+    know which instances exist and where they are — that's <strong>service discovery</strong>.
+    Five main approaches solve these problems, each with different trade-offs.
+  </p>
+
+  <div class="lb-tabs">
+    <button class="lb-tab active" onclick="showLBTab('hardware')">⚙ Hardware LB</button>
+    <button class="lb-tab" onclick="showLBTab('software')">💻 Software LB</button>
+    <button class="lb-tab" onclick="showLBTab('dns')">🌐 DNS</button>
+    <button class="lb-tab" onclick="showLBTab('discovery')">📋 Service Discovery</button>
+    <button class="lb-tab" onclick="showLBTab('mesh')">🕸 Service Mesh</button>
+  </div>
+
+  <!-- ── Hardware LB ── -->
+  <div class="lb-panel active" id="tab-hardware">
+    <h3 id="hardware">Hardware Load Balancers</h3>
+    <p>
+      The oldest solution: a <strong>dedicated physical appliance</strong> installed in the datacenter.
+      Clients connect to a single virtual IP (VIP) address and port. The hardware device intercepts
+      every connection and forwards it to one of the backend servers according to a load distribution
+      algorithm (round-robin, least-connections, etc.).
+    </p>
+    <p>
+      Hardware LBs operate at layer 4 (TCP/UDP) or layer 7 (HTTP). Layer 4 devices are faster but
+      opaque — they can't inspect request content. Layer 7 devices can route based on HTTP headers,
+      paths, or cookies, enabling sophisticated traffic shaping.
+    </p>
+    <p>
+      The appliance continuously health-checks its pool of servers. If a server stops responding, the
+      LB automatically removes it from rotation — clients never notice the failure.
+    </p>
+
+    <div class="diagram">
+      <div class="diagram-title">Hardware LB — Request Flow</div>
+      <svg class="topo-svg" viewBox="0 0 560 280" id="svg-hw">
+        <!-- Client -->
+        <rect x="205" y="10" width="150" height="50" rx="8" fill="#dbeafe" stroke="#93c5fd" stroke-width="2"/>
+        <text x="280" y="30" text-anchor="middle" class="node-label" fill="#1e40af">Client</text>
+        <text x="280" y="48" text-anchor="middle" class="node-sub">sends request to VIP</text>
+        <!-- Arrow C→LB -->
+        <line x1="280" y1="60" x2="280" y2="95" stroke="#9ca3af" stroke-width="2" marker-end="url(#arr)"/>
+        <!-- Hardware LB -->
+        <rect x="155" y="95" width="250" height="55" rx="8" fill="#4f46e5" stroke="#4338ca" stroke-width="2"/>
+        <text x="280" y="118" text-anchor="middle" class="node-label" fill="#fff">Hardware Load Balancer</text>
+        <text x="280" y="136" text-anchor="middle" fill="#c7d2fe" font-size="10">dedicated appliance · single VIP</text>
+        <!-- Arrows LB→servers -->
+        <line x1="200" y1="150" x2="80" y2="205" stroke="#9ca3af" stroke-width="2" marker-end="url(#arr)"/>
+        <line x1="280" y1="150" x2="280" y2="205" stroke="#9ca3af" stroke-width="2" marker-end="url(#arr)"/>
+        <line x1="360" y1="150" x2="480" y2="205" stroke="#9ca3af" stroke-width="2" marker-end="url(#arr)"/>
+        <!-- Servers -->
+        <rect id="hw-s1" x="30" y="205" width="100" height="55" rx="8" fill="#d1fae5" stroke="#34d399" stroke-width="2"/>
+        <text x="80" y="228" text-anchor="middle" class="node-label" fill="#065f46">Server 1</text>
+        <text x="80" y="246" text-anchor="middle" class="node-sub">running v2</text>
+        <rect id="hw-s2" x="230" y="205" width="100" height="55" rx="8" fill="#d1fae5" stroke="#34d399" stroke-width="2"/>
+        <text x="280" y="228" text-anchor="middle" class="node-label" fill="#065f46">Server 2</text>
+        <text x="280" y="246" text-anchor="middle" class="node-sub">running v2</text>
+        <rect id="hw-s3" x="430" y="205" width="100" height="55" rx="8" fill="#d1fae5" stroke="#34d399" stroke-width="2"/>
+        <text x="480" y="228" text-anchor="middle" class="node-label" fill="#065f46">Server 3</text>
+        <text x="480" y="246" text-anchor="middle" class="node-sub">running v2</text>
+        <!-- Animated dot -->
+        <circle id="hw-dot" cx="280" cy="35" r="7" fill="#f59e0b" opacity="0"/>
+        <!-- Arrow marker -->
+        <defs>
+          <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#9ca3af"/>
+          </marker>
+        </defs>
+      </svg>
+      <div class="step-desc" id="hw-step-desc">Click "Send Request" to trace a request through the hardware LB.</div>
+      <div class="btn-row" style="justify-content:center">
+        <button class="btn primary" onclick="animateHW()">⚡ Send Request</button>
+      </div>
+    </div>
+
+    <div class="tradeoffs">
+      <div class="tradeoff-box pros">
+        <h4>Strengths</h4>
+        <ul>
+          <li>Extremely high throughput (line-rate forwarding)</li>
+          <li>Automatic failure detection &amp; failover</li>
+          <li>Single VIP — clients need zero configuration</li>
+          <li>Proven technology, decades of vendor support</li>
+        </ul>
+      </div>
+      <div class="tradeoff-box cons">
+        <h4>Limitations</h4>
+        <ul>
+          <li>Expensive — six-figure appliances are common</li>
+          <li>Vendor lock-in and slow upgrade cycles</li>
+          <li>Single point of failure without HA pairing</li>
+          <li>Scaling requires more hardware, not more code</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="callout tip">
+      <p><strong>When to use</strong> On-premise datacenters with high-throughput, latency-sensitive services (financial systems, telecoms) where budget allows dedicated appliances.</p>
+    </div>
+  </div>
+
+  <!-- ── Software LB ── -->
+  <div class="lb-panel" id="tab-software">
+    <h3 id="software">Software Load Balancers</h3>
+    <p>
+      Software load balancers like <strong>NGINX</strong> and <strong>HAProxy</strong> provide the same
+      logical topology as hardware LBs — a single entry point that distributes traffic across a pool of
+      servers — but run as ordinary applications on commodity hardware.
+    </p>
+    <p>
+      NGINX and HAProxy operate at layer 7 and support HTTP, TCP, and UDP. They can route based on
+      request path, hostname, headers, or cookies, making them powerful for microservice architectures.
+      For example, you can route <code>/api/v1/*</code> to old servers and <code>/api/v2/*</code> to new
+      servers — directly supporting the mixed-version scenario from rolling upgrades.
+    </p>
+    <p>
+      Because they run on standard machines, software LBs can be horizontally scaled, run in containers,
+      and configured through code. The backend server pool is defined in a config file that can be
+      reloaded without downtime.
+    </p>
+
+    <div class="diagram">
+      <div class="diagram-title">Software LB (NGINX / HAProxy) — Request Flow</div>
+      <svg class="topo-svg" viewBox="0 0 560 300" id="svg-sw">
+        <defs>
+          <marker id="arr2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#9ca3af"/>
+          </marker>
+        </defs>
+        <!-- Client -->
+        <rect x="205" y="10" width="150" height="50" rx="8" fill="#dbeafe" stroke="#93c5fd" stroke-width="2"/>
+        <text x="280" y="30" text-anchor="middle" class="node-label" fill="#1e40af">Client</text>
+        <text x="280" y="48" text-anchor="middle" class="node-sub">connects to single address</text>
+        <line x1="280" y1="60" x2="280" y2="100" stroke="#9ca3af" stroke-width="2" marker-end="url(#arr2)"/>
+        <!-- Software LB box -->
+        <rect x="145" y="100" width="270" height="60" rx="8" fill="#0891b2" stroke="#0e7490" stroke-width="2"/>
+        <text x="280" y="124" text-anchor="middle" class="node-label" fill="#fff">Software Load Balancer</text>
+        <text x="280" y="143" text-anchor="middle" fill="#a5f3fc" font-size="10">NGINX / HAProxy · standard machine · HTTP routing</text>
+        <!-- Config note -->
+        <rect x="400" y="100" width="150" height="50" rx="6" fill="#f0fdf4" stroke="#86efac" stroke-width="1.5"/>
+        <text x="475" y="120" text-anchor="middle" font-size="10" fill="#166534" font-weight="600">upstream config</text>
+        <text x="475" y="133" text-anchor="middle" font-size="9" fill="#4ade80">server 10.0.0.1:8080</text>
+        <text x="475" y="144" text-anchor="middle" font-size="9" fill="#4ade80">server 10.0.0.2:8080</text>
+        <line x1="415" y1="130" x2="415" y2="130" stroke="none"/>
+        <!-- Arrows LB→servers -->
+        <line x1="200" y1="160" x2="80" y2="215" stroke="#9ca3af" stroke-width="2" marker-end="url(#arr2)"/>
+        <line x1="280" y1="160" x2="280" y2="215" stroke="#9ca3af" stroke-width="2" marker-end="url(#arr2)"/>
+        <line x1="360" y1="160" x2="480" y2="215" stroke="#9ca3af" stroke-width="2" marker-end="url(#arr2)"/>
+        <!-- Servers -->
+        <rect x="30" y="215" width="100" height="55" rx="8" fill="#fef3c7" stroke="#fbbf24" stroke-width="2"/>
+        <text x="80" y="238" text-anchor="middle" class="node-label" fill="#92400e">Server 1</text>
+        <text x="80" y="256" text-anchor="middle" class="node-sub">v1</text>
+        <rect x="230" y="215" width="100" height="55" rx="8" fill="#d1fae5" stroke="#34d399" stroke-width="2"/>
+        <text x="280" y="238" text-anchor="middle" class="node-label" fill="#065f46">Server 2</text>
+        <text x="280" y="256" text-anchor="middle" class="node-sub">v2</text>
+        <rect x="430" y="215" width="100" height="55" rx="8" fill="#d1fae5" stroke="#34d399" stroke-width="2"/>
+        <text x="480" y="238" text-anchor="middle" class="node-label" fill="#065f46">Server 3</text>
+        <text x="480" y="256" text-anchor="middle" class="node-sub">v2</text>
+        <!-- Animated dot -->
+        <circle id="sw-dot" cx="280" cy="35" r="7" fill="#f59e0b" opacity="0"/>
+      </svg>
+      <div class="step-desc" id="sw-step-desc">Click "Send Request" to trace a request. Notice both v1 and v2 servers can coexist behind one LB.</div>
+      <div class="btn-row" style="justify-content:center">
+        <button class="btn primary" onclick="animateSW()">⚡ Send Request</button>
+      </div>
+    </div>
+
+    <div class="tradeoffs">
+      <div class="tradeoff-box pros">
+        <h4>Strengths</h4>
+        <ul>
+          <li>Runs on any commodity hardware or VM</li>
+          <li>Config-as-code, hot-reload without downtime</li>
+          <li>Layer 7: route by path, header, cookie</li>
+          <li>Vastly cheaper than hardware alternatives</li>
+        </ul>
+      </div>
+      <div class="tradeoff-box cons">
+        <h4>Limitations</h4>
+        <ul>
+          <li>Backend pool is statically configured — manual updates when servers change</li>
+          <li>Another service to operate, monitor, and keep highly available</li>
+          <li>Can become a bottleneck at very high connection counts</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── DNS LB ── -->
+  <div class="lb-panel" id="tab-dns">
+    <h3 id="dns">DNS-Based Load Balancing</h3>
+    <p>
+      DNS naturally supports multiple IP addresses per hostname. By associating several server IPs with
+      the same domain name, DNS enables a simple form of load balancing: when a client resolves
+      <code>api.example.com</code>, it gets multiple IPs back and picks one (usually the first, though
+      some clients rotate).
+    </p>
+    <p>
+      There's no dedicated LB appliance. The DNS server <em>is</em> the distributor. This makes
+      DNS load balancing incredibly cheap — the only requirement is a DNS server configuration change.
+    </p>
+
+    <div class="callout warn">
+      <p><strong>The staleness problem</strong> DNS entries are cached at every layer: the resolver, the OS, the browser. A removed server's IP can remain in caches for the full TTL duration (minutes to hours). If a server goes down, clients with stale cache entries will fail to connect until the cache expires.</p>
+    </div>
+
+    <div class="diagram">
+      <div class="diagram-title">DNS Load Balancing — with Staleness Problem</div>
+      <svg class="topo-svg" viewBox="0 0 560 320" id="svg-dns">
+        <defs>
+          <marker id="arr3" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#9ca3af"/>
+          </marker>
+          <marker id="arr3-red" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#ef4444"/>
+          </marker>
+        </defs>
+        <!-- Client -->
+        <rect x="30" y="20" width="120" height="50" rx="8" fill="#dbeafe" stroke="#93c5fd" stroke-width="2"/>
+        <text x="90" y="40" text-anchor="middle" class="node-label" fill="#1e40af">Client</text>
+        <text x="90" y="58" text-anchor="middle" class="node-sub">api.example.com?</text>
+        <!-- DNS Server -->
+        <rect x="320" y="20" width="150" height="50" rx="8" fill="#7c3aed" stroke="#6d28d9" stroke-width="2"/>
+        <text x="395" y="40" text-anchor="middle" class="node-label" fill="#fff">DNS Server</text>
+        <text x="395" y="58" text-anchor="middle" fill="#ddd6fe" font-size="10">returns A, B, C IPs</text>
+        <!-- DNS query arrow -->
+        <path d="M150,42 L320,42" stroke="#9ca3af" stroke-width="2" marker-end="url(#arr3)" stroke-dasharray="5,3"/>
+        <text x="235" y="36" text-anchor="middle" font-size="9" fill="#9ca3af">DNS query</text>
+        <!-- DNS response arrow -->
+        <path d="M320,54 L150,54" stroke="#7c3aed" stroke-width="2" marker-end="url(#arr3)"/>
+        <text x="235" y="68" text-anchor="middle" font-size="9" fill="#7c3aed">3 IPs returned</text>
+        <!-- Servers -->
+        <rect x="30" y="160" width="110" height="55" rx="8" fill="#d1fae5" stroke="#34d399" stroke-width="2"/>
+        <text x="85" y="183" text-anchor="middle" class="node-label" fill="#065f46">Server A</text>
+        <text x="85" y="201" text-anchor="middle" class="node-sub">10.0.0.1 — online</text>
+        <rect x="220" y="160" width="110" height="55" rx="8" fill="#d1fae5" stroke="#34d399" stroke-width="2"/>
+        <text x="275" y="183" text-anchor="middle" class="node-label" fill="#065f46">Server B</text>
+        <text x="275" y="201" text-anchor="middle" class="node-sub">10.0.0.2 — online</text>
+        <!-- Server C — offline, but DNS still returns its IP -->
+        <rect x="410" y="160" width="110" height="55" rx="8" fill="#fee2e2" stroke="#f87171" stroke-width="2"/>
+        <text x="465" y="183" text-anchor="middle" class="node-label" fill="#991b1b">Server C</text>
+        <text x="465" y="201" text-anchor="middle" class="node-sub" fill="#ef4444">10.0.0.3 — ⚠ offline</text>
+        <!-- Arrows from client to servers -->
+        <path d="M90,130 L85,160" stroke="#10b981" stroke-width="2" marker-end="url(#arr3)"/>
+        <path d="M90,130 L275,160" stroke="#10b981" stroke-width="2" marker-end="url(#arr3)"/>
+        <path d="M90,130 L465,160" stroke="#ef4444" stroke-width="2.5" stroke-dasharray="5,3" marker-end="url(#arr3-red)"/>
+        <text x="350" y="145" text-anchor="middle" font-size="9" fill="#ef4444">⚠ stale IP → connection fails</text>
+        <!-- Client picks arrow from DNS result to connect phase -->
+        <rect x="20" y="100" width="140" height="28" rx="5" fill="#fef3c7" stroke="#fbbf24"/>
+        <text x="90" y="119" text-anchor="middle" font-size="10" fill="#92400e">client picks an IP to use</text>
+        <path d="M90,74 L90,100" stroke="#9ca3af" stroke-width="2" marker-end="url(#arr3)"/>
+        <!-- DNS cache note -->
+        <rect x="310" y="100" width="230" height="40" rx="6" fill="#fef3c7" stroke="#fbbf24"/>
+        <text x="425" y="116" text-anchor="middle" font-size="10" fill="#92400e" font-weight="600">DNS Cache (TTL: 5 min)</text>
+        <text x="425" y="132" text-anchor="middle" font-size="9" fill="#92400e">Server C still listed — not yet purged</text>
+        <circle id="dns-dot" cx="90" cy="35" r="7" fill="#f59e0b" opacity="0"/>
+      </svg>
+      <div class="step-desc" id="dns-step-desc">DNS load balancing is simple but struggles with failures. Click "Simulate" to see a client hit a stale entry.</div>
+      <div class="btn-row" style="justify-content:center">
+        <button class="btn primary" onclick="animateDNS()">⚡ Simulate</button>
+      </div>
+    </div>
+
+    <div class="tradeoffs">
+      <div class="tradeoff-box pros">
+        <h4>Strengths</h4>
+        <ul>
+          <li>Zero infrastructure cost — DNS server already exists</li>
+          <li>Works at any scale (anycast routing in cloud CDNs)</li>
+          <li>Geo-routing by region is straightforward</li>
+        </ul>
+      </div>
+      <div class="tradeoff-box cons">
+        <h4>Limitations</h4>
+        <ul>
+          <li>Staleness: client cache keeps dead IPs for full TTL</li>
+          <li>No health-checking built in (without extra tooling)</li>
+          <li>Poor fit for fast-changing environments (Kubernetes)</li>
+          <li>No request-level routing — just connection distribution</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Service Discovery ── -->
+  <div class="lb-panel" id="tab-discovery">
+    <h3 id="discovery">Service Discovery Systems</h3>
+    <p>
+      Service discovery replaces DNS with a <strong>purpose-built registry</strong> that understands
+      the lifecycle of service instances. Tools like <strong>etcd</strong> and
+      <strong>Apache ZooKeeper</strong> maintain a live, consistent view of which service instances
+      are healthy and accepting requests.
+    </p>
+    <p>
+      When a service starts, it <em>registers</em> itself: "I'm Server B, listening on
+      <code>10.0.0.2:8080</code>, shard=3, datacenter=us-east-1." It then continuously sends
+      <strong>heartbeat signals</strong> to the registry. If heartbeats stop, the registry marks the
+      instance as unavailable — within seconds, not minutes.
+    </p>
+    <p>
+      Clients query the registry directly before connecting. Unlike DNS, clients get rich metadata:
+      version, shard, region. This enables <strong>smart load balancing</strong> — a v2 client can
+      query "give me all v2 server instances" and connect only to compatible ones.
+    </p>
+
+    <div class="diagram">
+      <div class="diagram-title">Service Discovery — Registration, Heartbeat, and Client Lookup</div>
+      <svg class="topo-svg" viewBox="0 0 580 340" id="svg-sd">
+        <defs>
+          <marker id="arr4" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#9ca3af"/>
+          </marker>
+          <marker id="arr4-p" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#7c3aed"/>
+          </marker>
+          <marker id="arr4-g" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#059669"/>
+          </marker>
+        </defs>
+        <!-- Registry (etcd/ZooKeeper) -->
+        <rect x="190" y="100" width="200" height="65" rx="8" fill="#7c3aed" stroke="#6d28d9" stroke-width="2"/>
+        <text x="290" y="123" text-anchor="middle" class="node-label" fill="#fff">Service Registry</text>
+        <text x="290" y="141" text-anchor="middle" fill="#ddd6fe" font-size="10">etcd / Apache ZooKeeper</text>
+        <text x="290" y="156" text-anchor="middle" fill="#ddd6fe" font-size="9">consistent key-value store</text>
+        <!-- Client -->
+        <rect x="20" y="100" width="130" height="65" rx="8" fill="#dbeafe" stroke="#93c5fd" stroke-width="2"/>
+        <text x="85" y="123" text-anchor="middle" class="node-label" fill="#1e40af">Client</text>
+        <text x="85" y="141" text-anchor="middle" class="node-sub">needs to call</text>
+        <text x="85" y="155" text-anchor="middle" class="node-sub">"user-service"</text>
+        <!-- Servers -->
+        <rect x="30" y="250" width="120" height="60" rx="8" fill="#d1fae5" stroke="#34d399" stroke-width="2"/>
+        <text x="90" y="273" text-anchor="middle" class="node-label" fill="#065f46">Server 1</text>
+        <text x="90" y="291" text-anchor="middle" class="node-sub">10.0.1.1:8080</text>
+        <text x="90" y="303" text-anchor="middle" class="node-sub">version=v2, shard=1</text>
+        <rect x="430" y="250" width="120" height="60" rx="8" fill="#d1fae5" stroke="#34d399" stroke-width="2"/>
+        <text x="490" y="273" text-anchor="middle" class="node-label" fill="#065f46">Server 2</text>
+        <text x="490" y="291" text-anchor="middle" class="node-sub">10.0.1.2:8080</text>
+        <text x="490" y="303" text-anchor="middle" class="node-sub">version=v2, shard=2</text>
+        <!-- Servers → registry (register) -->
+        <path d="M90,250 Q90,190 190,148" stroke="#7c3aed" stroke-width="1.5" fill="none" stroke-dasharray="4,3" marker-end="url(#arr4-p)"/>
+        <text x="100" y="210" font-size="9" fill="#7c3aed">① register</text>
+        <path d="M490,250 Q490,190 390,148" stroke="#7c3aed" stroke-width="1.5" fill="none" stroke-dasharray="4,3" marker-end="url(#arr4-p)"/>
+        <text x="430" y="210" font-size="9" fill="#7c3aed">① register</text>
+        <!-- Heartbeats -->
+        <circle id="hb1" cx="155" cy="200" r="5" fill="#7c3aed" opacity="0"/>
+        <circle id="hb2" cx="405" cy="200" r="5" fill="#7c3aed" opacity="0"/>
+        <text x="145" y="230" font-size="9" fill="#7c3aed">♥ heartbeat</text>
+        <text x="400" y="230" font-size="9" fill="#7c3aed">♥ heartbeat</text>
+        <!-- Client → registry (query) -->
+        <path d="M150,120 L190,120" stroke="#059669" stroke-width="2" fill="none" marker-end="url(#arr4-g)"/>
+        <text x="168" y="112" text-anchor="middle" font-size="9" fill="#059669">② query</text>
+        <!-- Registry → client (response) -->
+        <path d="M190,135 L150,135" stroke="#059669" stroke-width="2" fill="none" marker-end="url(#arr4-g)"/>
+        <text x="168" y="155" text-anchor="middle" font-size="9" fill="#059669">endpoints list</text>
+        <!-- Client → Server (direct connect) -->
+        <path d="M85,165 L85,250" stroke="#f59e0b" stroke-width="2.5" fill="none" marker-end="url(#arr4)"/>
+        <text x="45" y="220" font-size="9" fill="#d97706">③ direct</text>
+        <text x="45" y="232" font-size="9" fill="#d97706">connect</text>
+        <!-- Animated dot -->
+        <circle id="sd-dot" cx="85" cy="130" r="7" fill="#f59e0b" opacity="0"/>
+      </svg>
+      <div class="step-desc" id="sd-step-desc">Click "Simulate" to walk through the service discovery flow: register → heartbeat → query → direct connect.</div>
+      <div class="btn-row" style="justify-content:center">
+        <button class="btn primary" onclick="animateSD()">⚡ Simulate</button>
+      </div>
+    </div>
+
+    <div class="tradeoffs">
+      <div class="tradeoff-box pros">
+        <h4>Strengths</h4>
+        <ul>
+          <li>Real-time view of healthy instances (seconds, not minutes)</li>
+          <li>Rich metadata enables smart routing (version, region, shard)</li>
+          <li>Supports highly dynamic environments (containers, Kubernetes)</li>
+          <li>Client-side load balancing — no single LB bottleneck</li>
+        </ul>
+      </div>
+      <div class="tradeoff-box cons">
+        <h4>Limitations</h4>
+        <ul>
+          <li>Another distributed system to operate (etcd, ZooKeeper are complex)</li>
+          <li>Clients must include discovery library code</li>
+          <li>Registry becomes a consistency-critical component</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Service Mesh ── -->
+  <div class="lb-panel" id="tab-mesh">
+    <h3 id="mesh">Service Meshes</h3>
+    <p>
+      A service mesh takes the capabilities of software load balancers and service discovery and
+      moves them out of application code entirely. Instead of each service embedding a discovery
+      library, a lightweight <strong>sidecar proxy</strong> runs alongside every service instance —
+      as a separate process or container. All network traffic is transparently intercepted by the
+      sidecar.
+    </p>
+    <p>
+      The sidecar is configured by a <strong>control plane</strong> (Istio's <code>istiod</code> or
+      Linkerd's control plane). When Service A wants to call Service B, A's sidecar consults the
+      control plane for routing rules and healthy endpoints, then establishes a
+      <strong>mutual TLS (mTLS)</strong> connection directly to B's sidecar. The actual services
+      only ever talk to their local sidecar over <code>localhost</code>.
+    </p>
+    <p>
+      This topology has a powerful consequence: since all inter-service communication flows through
+      the sidecars, the mesh automatically provides <strong>encryption (mTLS), traffic metrics,
+      distributed tracing, circuit breaking, and retries</strong> — without any application code
+      changes.
+    </p>
+
+    <div class="diagram">
+      <div class="diagram-title">Service Mesh (Istio / Linkerd) — Sidecar Topology</div>
+      <svg class="topo-svg" viewBox="0 0 580 350" id="svg-mesh">
+        <defs>
+          <marker id="arr5" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#9ca3af"/>
+          </marker>
+          <marker id="arr5-tls" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#0891b2"/>
+          </marker>
+          <marker id="arr5-cp" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#d97706"/>
+          </marker>
+        </defs>
+
+        <!-- Left service pod -->
+        <rect x="10" y="40" width="230" height="180" rx="10" fill="none" stroke="#e5e7eb" stroke-width="2" stroke-dasharray="6,4"/>
+        <text x="125" y="28" text-anchor="middle" font-size="10" fill="#9ca3af" font-weight="600">Service A Pod</text>
+
+        <!-- Right service pod -->
+        <rect x="340" y="40" width="230" height="180" rx="10" fill="none" stroke="#e5e7eb" stroke-width="2" stroke-dasharray="6,4"/>
+        <text x="455" y="28" text-anchor="middle" font-size="10" fill="#9ca3af" font-weight="600">Service B Pod</text>
+
+        <!-- App A -->
+        <rect x="30" y="60" width="110" height="55" rx="8" fill="#dbeafe" stroke="#93c5fd" stroke-width="2"/>
+        <text x="85" y="83" text-anchor="middle" class="node-label" fill="#1e40af">App A</text>
+        <text x="85" y="100" text-anchor="middle" class="node-sub">user-service</text>
+
+        <!-- Sidecar A -->
+        <rect x="30" y="150" width="110" height="55" rx="8" fill="#0891b2" stroke="#0e7490" stroke-width="2"/>
+        <text x="85" y="173" text-anchor="middle" class="node-label" fill="#fff">Sidecar A</text>
+        <text x="85" y="191" text-anchor="middle" fill="#a5f3fc" font-size="10">Envoy proxy</text>
+
+        <!-- App B -->
+        <rect x="440" y="60" width="110" height="55" rx="8" fill="#d1fae5" stroke="#34d399" stroke-width="2"/>
+        <text x="495" y="83" text-anchor="middle" class="node-label" fill="#065f46">App B</text>
+        <text x="495" y="100" text-anchor="middle" class="node-sub">order-service</text>
+
+        <!-- Sidecar B -->
+        <rect x="440" y="150" width="110" height="55" rx="8" fill="#0891b2" stroke="#0e7490" stroke-width="2"/>
+        <text x="495" y="173" text-anchor="middle" class="node-label" fill="#fff">Sidecar B</text>
+        <text x="495" y="191" text-anchor="middle" fill="#a5f3fc" font-size="10">Envoy proxy</text>
+
+        <!-- App A → Sidecar A (localhost) -->
+        <path d="M85,115 L85,150" stroke="#9ca3af" stroke-width="2" marker-end="url(#arr5)"/>
+        <text x="95" y="137" font-size="9" fill="#9ca3af">localhost</text>
+
+        <!-- Sidecar A → Sidecar B (mTLS) -->
+        <path d="M140,177 L440,177" stroke="#0891b2" stroke-width="2.5" marker-end="url(#arr5-tls)"/>
+        <rect x="225" y="162" width="110" height="22" rx="4" fill="#ecfeff" stroke="#a5f3fc"/>
+        <text x="280" y="177" text-anchor="middle" font-size="9.5" fill="#0e7490" font-weight="600">🔒 mTLS tunnel</text>
+
+        <!-- Sidecar B → App B (localhost) -->
+        <path d="M495,150 L495,115" stroke="#9ca3af" stroke-width="2" marker-end="url(#arr5)"/>
+        <text x="505" y="137" font-size="9" fill="#9ca3af">localhost</text>
+
+        <!-- Control plane -->
+        <rect x="190" y="270" width="200" height="60" rx="8" fill="#fef3c7" stroke="#fbbf24" stroke-width="2"/>
+        <text x="290" y="294" text-anchor="middle" class="node-label" fill="#92400e">Control Plane</text>
+        <text x="290" y="312" text-anchor="middle" class="node-sub">istiod / Linkerd control plane</text>
+
+        <!-- Control plane → Sidecars -->
+        <path d="M220,270 L105,205" stroke="#d97706" stroke-width="1.5" stroke-dasharray="4,3" fill="none" marker-end="url(#arr5-cp)"/>
+        <path d="M360,270 L465,205" stroke="#d97706" stroke-width="1.5" stroke-dasharray="4,3" fill="none" marker-end="url(#arr5-cp)"/>
+        <text x="155" y="253" font-size="9" fill="#d97706">config &amp; certs</text>
+        <text x="365" y="253" font-size="9" fill="#d97706">config &amp; certs</text>
+
+        <!-- Feature labels -->
+        <text x="290" y="230" text-anchor="middle" font-size="9.5" fill="#0891b2" font-weight="600">✓ encryption  ✓ retries  ✓ tracing  ✓ circuit breaking</text>
+
+        <!-- Animated dot -->
+        <circle id="mesh-dot" cx="85" cy="87" r="7" fill="#f59e0b" opacity="0"/>
+      </svg>
+      <div class="step-desc" id="mesh-step-desc">Click "Simulate" to trace a request from App A to App B through the service mesh.</div>
+      <div class="btn-row" style="justify-content:center">
+        <button class="btn primary" onclick="animateMesh()">⚡ Simulate</button>
+      </div>
+    </div>
+
+    <div class="tradeoffs">
+      <div class="tradeoff-box pros">
+        <h4>Strengths</h4>
+        <ul>
+          <li>Encryption (mTLS), observability, retries — zero app code changes</li>
+          <li>Fine-grained traffic control: canary deploys, A/B testing, weight-based routing</li>
+          <li>Uniform policy enforcement across all services</li>
+          <li>Perfect for Kubernetes environments</li>
+        </ul>
+      </div>
+      <div class="tradeoff-box cons">
+        <h4>Limitations</h4>
+        <ul>
+          <li>Added latency per request (two extra hops through sidecars)</li>
+          <li>Significant operational complexity — control plane must stay healthy</li>
+          <li>Resource overhead: every pod runs an extra proxy container</li>
+          <li>Steep learning curve (Istio is notoriously complex)</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="callout tip">
+      <p><strong>Canary deploys with a service mesh</strong> You can route 5% of traffic to v2 servers while keeping 95% on v1 — a perfect complement to rolling upgrades. The mesh enforces the split at the network level without any application changes.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════
+     SECTION 6 — DECISION GUIDE
+════════════════════════════════════ -->
+<section id="decision">
+  <span class="section-num">Summary</span>
+  <h2>Choosing the Right Approach</h2>
+
+  <p>
+    No single solution fits every environment. The right choice depends on how dynamic your
+    infrastructure is, what orchestration platform you use, and how much operational complexity
+    you can absorb.
+  </p>
+
+  <table class="comp-table">
+    <thead>
+      <tr>
+        <th>Approach</th>
+        <th>Best for</th>
+        <th>Failure detection</th>
+        <th>Complexity</th>
+        <th>Kubernetes fit</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Hardware LB</strong></td>
+        <td>On-prem, latency-critical</td>
+        <td><span class="dot-green">Seconds</span></td>
+        <td><span class="dot-amber">Medium</span></td>
+        <td><span class="dot-red">Poor</span></td>
+      </tr>
+      <tr>
+        <td><strong>Software LB</strong></td>
+        <td>Most web services</td>
+        <td><span class="dot-green">Seconds</span></td>
+        <td><span class="dot-green">Low</span></td>
+        <td><span class="dot-amber">Partial</span></td>
+      </tr>
+      <tr>
+        <td><strong>DNS LB</strong></td>
+        <td>Static infra, geo-routing</td>
+        <td><span class="dot-red">Minutes (TTL)</span></td>
+        <td><span class="dot-green">Very low</span></td>
+        <td><span class="dot-red">Poor</span></td>
+      </tr>
+      <tr>
+        <td><strong>Service Discovery</strong></td>
+        <td>Dynamic microservices</td>
+        <td><span class="dot-green">Seconds</span></td>
+        <td><span class="dot-amber">Medium</span></td>
+        <td><span class="dot-green">Good</span></td>
+      </tr>
+      <tr>
+        <td><strong>Service Mesh</strong></td>
+        <td>Kubernetes / cloud-native</td>
+        <td><span class="dot-green">Seconds</span></td>
+        <td><span class="dot-red">High</span></td>
+        <td><span class="dot-green">Excellent</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Interactive decision helper -->
+  <div class="decision-box">
+    <div style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--accent);margin-bottom:.5rem">Decision Helper</div>
+    <div class="d-progress" id="d-progress">Question 1 of 4</div>
+    <div class="dq" id="d-question">How dynamic is your server infrastructure?</div>
+    <div class="d-options" id="d-options"></div>
+    <div class="d-result" id="d-result">
+      <h4 id="d-result-title"></h4>
+      <p id="d-result-body"></p>
+    </div>
+    <div class="btn-row" style="margin-top:.75rem">
+      <button class="btn" onclick="resetDecider()">↺ Start over</button>
+    </div>
+  </div>
+
+  <h3>Closing thought</h3>
+  <p>
+    Load balancing, service discovery, and service meshes aren't separate infrastructure concerns —
+    they're the <em>network-layer expression</em> of the same encoding compatibility problem. When your
+    format ensures backward/forward compat, any instance can handle any request. When your load balancer
+    routes requests intelligently, you can run old and new versions simultaneously without client
+    disruption. Together, these two layers make rolling upgrades safe, routine, and — eventually —
+    invisible to the outside world.
+  </p>
+</section>
+
+<footer style="margin-top:4rem;padding-top:1.5rem;border-top:1px solid var(--border);font-size:.82rem;color:var(--muted)">
+  Based on <em>Designing Data-Intensive Applications, 2nd Edition</em> by Martin Kleppmann — Chapter 5: Encoding and Evolution.
+</footer>
+
+</main>
+</div>
+
+<script>
+// ─── Progress bar ───
+window.addEventListener('scroll', () => {
+  const total = document.body.scrollHeight - window.innerHeight;
+  const pct = total > 0 ? (window.scrollY / total * 100) : 0;
+  document.getElementById('progress-bar').style.width = pct + '%';
+});
+
+// ─── TOC active highlight ───
+const tocLinks = document.querySelectorAll('#toc a');
+const sections = Array.from(document.querySelectorAll('section[id], h3[id]'));
+window.addEventListener('scroll', () => {
+  let current = '';
+  sections.forEach(s => { if (window.scrollY >= s.offsetTop - 120) current = s.id; });
+  tocLinks.forEach(a => {
+    a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+  });
+}, {passive: true});
+
+// ─── Encoding format comparison ───
+const fmtData = {
+  json: {
+    color: '#6b7280',
+    detail: '<strong>JSON:</strong> All field names included in every message as strings. <code>{"userName":"Martin","favoriteNumber":1337,"interests":["daydreaming","hacking"]}</code> — 81 bytes. Human-readable, schema optional. No binary type support; numbers are ambiguous (no int vs float).'
+  },
+  msgpack: {
+    color: '#0891b2',
+    detail: '<strong>MessagePack:</strong> Binary encoding of JSON. Same data model — field names are still embedded — but uses a compact binary representation. 66 bytes vs JSON\'s 81. Only ~18% smaller; the field name overhead remains. Faster to parse than text JSON but loses human-readability.'
+  },
+  proto: {
+    color: '#4f46e5',
+    detail: '<strong>Protocol Buffers:</strong> Field names replaced by integer tags defined in a <code>.proto</code> schema. The schema is required to decode data. 33 bytes — 59% smaller than JSON. Schema evolution uses tag numbers: add a field → new tag; old parsers skip unknown tags (forward compat). Field names can change; tags cannot.'
+  },
+  avro: {
+    color: '#059669',
+    detail: '<strong>Apache Avro:</strong> No field names or tags in the binary data at all — fields are identified purely by position in the schema. Reader and writer schemas are reconciled at decode time by matching field names. 32 bytes. More dynamic schema evolution but requires access to the writer\'s schema to decode any record.'
+  }
+};
+function showFormat(name) {
+  document.querySelectorAll('.fmt-tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  const colors = {json:'#6b7280',msgpack:'#0891b2',proto:'#4f46e5',avro:'#059669'};
+  ['json','msgpack','proto','avro'].forEach(k => {
+    document.getElementById('bar-'+k).style.background = k === name ? colors[name] : '#d1d5db';
+  });
+  document.getElementById('fmt-detail').innerHTML = fmtData[name].detail;
+}
+
+// ─── Rolling upgrade ───
+let ruTimer = null, ruStep = 0;
+const ruPhases = [
+  'Deployment started. Node 1 taken out of rotation for upgrade…',
+  'Node 1 restarted as v2 ✓ — now handling v2 traffic. Node 2 upgrading…',
+  'Node 2 upgraded ✓ — both can handle requests. Node 3 upgrading…',
+  'Node 3 upgraded ✓. Halfway there. Node 4 upgrading…',
+  'Node 4 upgraded ✓. Almost done. Node 5 upgrading…',
+  'Node 5 upgraded ✓. Final node upgrading…',
+  'All nodes running v2! Rolling upgrade complete with zero downtime.'
+];
+
+function initRUNodes() {
+  const c = document.getElementById('ru-nodes');
+  c.innerHTML = '';
+  for (let i = 1; i <= 6; i++) {
+    const n = document.createElement('div');
+    n.className = 'ru-node v1';
+    n.id = 'ru-node-' + i;
+    n.innerHTML = `Node ${i}<span class="node-label">v1</span>`;
+    c.appendChild(n);
+  }
+  document.getElementById('ru-v1-count').textContent = '6';
+  document.getElementById('ru-v2-count').textContent = '0';
+  document.getElementById('ru-desc').textContent = 'Click "Start Upgrade" to watch a rolling deployment in action.';
+}
+initRUNodes();
+
+function startRollingUpgrade() {
+  document.getElementById('ru-start-btn').disabled = true;
+  ruStep = 0;
+  upgradeNext();
+}
+
+function upgradeNext() {
+  if (ruStep >= 6) {
+    document.getElementById('ru-desc').textContent = ruPhases[6];
+    document.getElementById('ru-start-btn').disabled = false;
+    return;
+  }
+  const nodeId = 'ru-node-' + (ruStep + 1);
+  const node = document.getElementById(nodeId);
+  node.className = 'ru-node upgrading';
+  node.innerHTML = `Node ${ruStep+1}<span class="node-label">↻ upgrading</span>`;
+  document.getElementById('ru-desc').textContent = ruPhases[ruStep];
+
+  setTimeout(() => {
+    node.className = 'ru-node v2';
+    node.innerHTML = `Node ${ruStep+1}<span class="node-label">v2</span>`;
+    ruStep++;
+    document.getElementById('ru-v1-count').textContent = 6 - ruStep;
+    document.getElementById('ru-v2-count').textContent = ruStep;
+    setTimeout(upgradeNext, 600);
+  }, 1200);
+}
+
+function resetRollingUpgrade() {
+  if (ruTimer) clearTimeout(ruTimer);
+  document.getElementById('ru-start-btn').disabled = false;
+  ruStep = 0;
+  initRUNodes();
+}
+
+// ─── LB tabs ───
+function showLBTab(name) {
+  document.querySelectorAll('.lb-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.lb-panel').forEach(p => p.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+// ─── Generic dot animation helper ───
+function moveDot(id, steps, onDone) {
+  const dot = document.getElementById(id);
+  dot.style.opacity = '1';
+  let i = 0;
+  function next() {
+    if (i >= steps.length) { dot.style.opacity = '0'; if(onDone) onDone(); return; }
+    const [cx, cy] = steps[i++];
+    dot.setAttribute('cx', cx);
+    dot.setAttribute('cy', cy);
+    setTimeout(next, 420);
+  }
+  next();
+}
+
+// ─── Hardware LB animation ───
+let hwRunning = false;
+function animateHW() {
+  if (hwRunning) return;
+  hwRunning = true;
+  const desc = document.getElementById('hw-step-desc');
+  const target = [30,230,280,230,480,230][Math.floor(Math.random()*3)*2]; // pick s1/s2/s3 cx
+  const targets = [[30,232],[280,232],[480,232]];
+  const t = targets[Math.floor(Math.random()*3)];
+  const steps = [[280,35],[280,75],[280,122],[t[0],175],[t[0],t[1]]];
+  const labels = ['Client sending request…','Reaching load balancer…','Hardware LB selects a backend…','Routing to healthy server…','Request delivered ✓'];
+  let i = 0;
+  const dot = document.getElementById('hw-dot');
+  dot.style.opacity = '1';
+  function next() {
+    if (i >= steps.length) { dot.style.opacity='0'; hwRunning=false; desc.textContent='Request delivered! Click again to send another.'; return; }
+    const [cx,cy]=steps[i];
+    dot.setAttribute('cx',cx); dot.setAttribute('cy',cy);
+    desc.textContent = labels[i];
+    i++;
+    setTimeout(next, 450);
+  }
+  next();
+}
+
+// ─── Software LB animation ───
+let swRunning = false;
+function animateSW() {
+  if (swRunning) return; swRunning = true;
+  const desc = document.getElementById('sw-step-desc');
+  const targets = [[80,237],[280,237],[480,237]];
+  const t = targets[Math.floor(Math.random()*3)];
+  const steps = [[280,35],[280,75],[280,130],[t[0],180],[t[0],t[1]]];
+  const labels = ['Client sends request to NGINX address…','Arriving at software LB…','NGINX checks backend pool, selects server…','Forwarding to chosen backend…','Response served ✓ — LB records backend for keep-alive'];
+  const dot = document.getElementById('sw-dot');
+  dot.style.opacity='1';
+  let i=0;
+  function next(){
+    if(i>=steps.length){dot.style.opacity='0';swRunning=false;desc.textContent='Notice: v1 and v2 servers coexist behind one NGINX.'; return;}
+    const[cx,cy]=steps[i];
+    dot.setAttribute('cx',cx);dot.setAttribute('cy',cy);
+    desc.textContent=labels[i]; i++;
+    setTimeout(next,450);
+  }
+  next();
+}
+
+// ─── DNS animation ───
+let dnsRunning = false;
+function animateDNS() {
+  if(dnsRunning) return; dnsRunning=true;
+  const desc = document.getElementById('dns-step-desc');
+  // Deliberately route to Server C (offline) to show the problem
+  const steps = [[90,45],[395,45],[395,45],[90,115],[90,115],[465,180]];
+  const labels = [
+    '① Client queries DNS for api.example.com…',
+    '② DNS returns 3 IPs: A, B, and C (C is offline but still in DNS)',
+    '② DNS has no health awareness — all 3 IPs returned',
+    '③ Client picks an IP from the list (e.g., Server C\'s IP)…',
+    '③ Client\'s OS cached the DNS result (TTL not expired yet)',
+    '⚠ Connection FAILS — Server C is offline! Client must retry with a different IP.'
+  ];
+  const dot = document.getElementById('dns-dot');
+  dot.style.opacity='1';
+  dot.setAttribute('fill','#f59e0b');
+  let i=0;
+  function next(){
+    if(i>=steps.length){dot.style.opacity='0';dnsRunning=false;desc.textContent='With a short TTL (e.g., 30s) the stale entry would expire sooner — but DNS TTLs are often set to minutes or hours.'; return;}
+    const[cx,cy]=steps[i];
+    dot.setAttribute('cx',cx);dot.setAttribute('cy',cy);
+    if(i===5) dot.setAttribute('fill','#ef4444');
+    desc.textContent=labels[i]; i++;
+    setTimeout(next, i===6?600:430);
+  }
+  next();
+}
+
+// ─── Service Discovery animation ───
+let sdRunning=false;
+function animateSD(){
+  if(sdRunning) return; sdRunning=true;
+  const desc=document.getElementById('sd-step-desc');
+  // Heartbeat pulses
+  const hb1=document.getElementById('hb1'), hb2=document.getElementById('hb2');
+  function pulseHB(){
+    hb1.style.opacity='1'; hb2.style.opacity='1';
+    setTimeout(()=>{hb1.style.opacity='0';hb2.style.opacity='0';},300);
+  }
+  const steps=[[290,132],[290,132],[85,132],[85,132],[85,200],[85,280]];
+  const labels=[
+    '① Servers registered on startup — heartbeats keep registry up to date ♥',
+    '② Client needs to call "user-service" — queries the registry…',
+    '② Registry returns list of healthy endpoints with metadata (version, shard, region)',
+    '③ Client has full endpoint list — can apply custom load balancing logic',
+    '③ Client connects DIRECTLY to chosen server (no LB in the path)',
+    'Request delivered ✓ — client caches endpoint list briefly'
+  ];
+  pulseHB();
+  const dot=document.getElementById('sd-dot');
+  dot.style.opacity='1';
+  let i=0;
+  function next(){
+    if(i>=steps.length){dot.style.opacity='0';sdRunning=false;desc.textContent='If a server stops sending heartbeats, the registry removes it in seconds — no stale entries!'; return;}
+    const[cx,cy]=steps[i];
+    dot.setAttribute('cx',cx);dot.setAttribute('cy',cy);
+    desc.textContent=labels[i]; i++;
+    if(i%2===0) pulseHB();
+    setTimeout(next,500);
+  }
+  next();
+}
+
+// ─── Service Mesh animation ───
+let meshRunning=false;
+function animateMesh(){
+  if(meshRunning) return; meshRunning=true;
+  const desc=document.getElementById('mesh-step-desc');
+  const steps=[[85,87],[85,177],[280,177],[495,177],[495,87]];
+  const labels=[
+    '① App A makes a plain HTTP call to localhost — no service discovery code needed',
+    '② Sidecar A intercepts, queries control plane for routing rules, opens mTLS to Sidecar B',
+    '③ Encrypted mTLS tunnel across the network — App A has no TLS code',
+    '④ Sidecar B decrypts, forwards to App B on localhost — App B sees a plain connection',
+    '⑤ Response travels back the same path. Full request traced, metered, and secured. ✓'
+  ];
+  const dot=document.getElementById('mesh-dot');
+  dot.style.opacity='1';
+  let i=0;
+  function next(){
+    if(i>=steps.length){dot.style.opacity='0';meshRunning=false;desc.textContent='The apps only talked to localhost. Encryption, retries, and observability were handled entirely by the sidecars.'; return;}
+    const[cx,cy]=steps[i];
+    dot.setAttribute('cx',cx);dot.setAttribute('cy',cy);
+    desc.textContent=labels[i]; i++;
+    setTimeout(next,550);
+  }
+  next();
+}
+
+// ─── Decision helper ───
+const dTree = [
+  {
+    q: 'How dynamic is your server infrastructure?',
+    opts: [
+      {label: 'Mostly static — IPs rarely change', next: 1},
+      {label: 'Dynamic — servers start/stop frequently', next: 2}
+    ]
+  },
+  {
+    q: 'Do you need automatic failure detection?',
+    opts: [
+      {label: 'No — manual is fine', result: 'dns'},
+      {label: 'Yes — within seconds', result: 'software'}
+    ]
+  },
+  {
+    q: 'Are you running on Kubernetes or a container orchestrator?',
+    opts: [
+      {label: 'Yes (Kubernetes, Nomad, etc.)', next: 3},
+      {label: 'No — VMs or bare metal', result: 'discovery'}
+    ]
+  },
+  {
+    q: 'Do you need encryption, distributed tracing, or canary releases without app changes?',
+    opts: [
+      {label: 'Yes — we want these out of the box', result: 'mesh'},
+      {label: 'No — we\'ll handle that in application code', result: 'discovery'}
+    ]
+  }
+];
+
+const dResults = {
+  dns: {
+    title: '→ DNS Load Balancing',
+    body: 'Your infra is static and you can tolerate TTL-based lag. Use DNS with a short TTL (30–60s) and pair with an external health check tool that removes IPs when servers go offline. Simple and zero infrastructure cost.'
+  },
+  software: {
+    title: '→ Software Load Balancer (NGINX / HAProxy)',
+    body: 'A software LB fits your needs well — automatic health checks, fast failover, and HTTP-level routing. Configure NGINX with upstream health checks enabled. Update backend pool via config reload when servers change.'
+  },
+  discovery: {
+    title: '→ Service Discovery (etcd / Consul)',
+    body: 'Your dynamic environment needs real-time endpoint tracking. Deploy etcd or Consul, have each service register on startup and send heartbeats. Use a service discovery client library (e.g., go-micro, Spring Cloud) to enable client-side load balancing.'
+  },
+  mesh: {
+    title: '→ Service Mesh (Istio / Linkerd)',
+    body: 'Kubernetes + advanced features is the classic service mesh use case. Linkerd is lighter-weight and easier to operate; Istio is more feature-rich but complex. Both give you mTLS, traffic shifting for canary deploys, and automatic observability with zero app changes.'
+  }
+};
+
+let dState = {node: 0};
+
+function renderDecider() {
+  const node = dTree[dState.node];
+  if (!node) return;
+  document.getElementById('d-progress').textContent = `Question ${dState.node + 1} of ${dTree.length}`;
+  document.getElementById('d-question').textContent = node.q;
+  document.getElementById('d-result').style.display = 'none';
+  const opts = document.getElementById('d-options');
+  opts.innerHTML = '';
+  node.opts.forEach(o => {
+    const btn = document.createElement('button');
+    btn.className = 'd-opt';
+    btn.textContent = o.label;
+    btn.onclick = () => {
+      if (o.result) {
+        showResult(o.result);
+      } else {
+        dState.node = o.next;
+        renderDecider();
+      }
+    };
+    opts.appendChild(btn);
+  });
+}
+
+function showResult(key) {
+  document.getElementById('d-options').innerHTML = '';
+  document.getElementById('d-question').textContent = 'Recommendation:';
+  document.getElementById('d-progress').textContent = 'Done';
+  const r = document.getElementById('d-result');
+  document.getElementById('d-result-title').textContent = dResults[key].title;
+  document.getElementById('d-result-body').textContent = dResults[key].body;
+  r.style.display = 'block';
+}
+
+function resetDecider() {
+  dState = {node: 0};
+  renderDecider();
+}
+
+renderDecider();
+</script>
+</body>
+</html>
